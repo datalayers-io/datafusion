@@ -1782,6 +1782,20 @@ fn ensure_field_compatibility(
     datafusion_field: &Field,
     substrait_field: &Field,
 ) -> Result<()> {
+    // Normalizes "UTC" timezone and "+00:00".
+    match (datafusion_field.data_type(), substrait_field.data_type()) {
+        (
+            DataType::Timestamp(datafusion_time_unit, Some(datafusion_tz)),
+            DataType::Timestamp(substrait_time_unit, Some(substrait_tz)),
+        ) if datafusion_time_unit == substrait_time_unit => {
+            match (datafusion_tz.as_ref(), substrait_tz.as_ref()) {
+                ("+00:00", "UTC") | ("UTC", "+00:00") => return Ok(()),
+                _ => {}
+            }
+        }
+        _ => {}
+    }
+
     if !DFSchema::datatype_is_logically_equal(
         datafusion_field.data_type(),
         substrait_field.data_type(),
@@ -3318,6 +3332,7 @@ mod test {
     };
     use arrow::array::types::IntervalMonthDayNano;
     use datafusion::arrow;
+    use datafusion::arrow::datatypes::{DataType, Field, TimeUnit};
     use datafusion::common::DFSchema;
     use datafusion::error::Result;
     use datafusion::execution::SessionState;
@@ -3330,6 +3345,8 @@ mod test {
     };
     use substrait::proto::expression::window_function::BoundsType;
     use substrait::proto::expression::Literal;
+
+    use super::ensure_field_compatibility;
 
     static TEST_SESSION_STATE: LazyLock<SessionState> =
         LazyLock::new(|| SessionContext::default().state());
@@ -3403,6 +3420,59 @@ mod test {
             }
             _ => panic!("expr was not a WindowFunction"),
         };
+
+        Ok(())
+    }
+
+    #[test]
+    fn test_ensure_field_compatibility_normalize_timezones() -> Result<()> {
+        // Test case 1: with different time units.
+        let got = ensure_field_compatibility(
+            &Field::new("a", DataType::Timestamp(TimeUnit::Second, None), true),
+            &Field::new("a", DataType::Timestamp(TimeUnit::Nanosecond, None), true),
+        );
+        assert!(got.is_err());
+
+        // Test case 2: with same time units but not both have timezones.
+        let got = ensure_field_compatibility(
+            &Field::new(
+                "a",
+                DataType::Timestamp(TimeUnit::Second, Some("UTC".into())),
+                true,
+            ),
+            &Field::new("a", DataType::Timestamp(TimeUnit::Second, None), true),
+        );
+        assert!(got.is_err());
+
+        // Test case 3: with same time units but have inconsistent timezones.
+        let got = ensure_field_compatibility(
+            &Field::new(
+                "a",
+                DataType::Timestamp(TimeUnit::Second, Some("UTC".into())),
+                true,
+            ),
+            &Field::new(
+                "a",
+                DataType::Timestamp(TimeUnit::Second, Some("UTC+8".into())),
+                true,
+            ),
+        );
+        assert!(got.is_err());
+
+        // Test case 4: with same time units but have can-normalized timezones.
+        let got = ensure_field_compatibility(
+            &Field::new(
+                "a",
+                DataType::Timestamp(TimeUnit::Second, Some("UTC".into())),
+                true,
+            ),
+            &Field::new(
+                "a",
+                DataType::Timestamp(TimeUnit::Second, Some("+00:00".into())),
+                true,
+            ),
+        );
+        assert!(got.is_ok());
 
         Ok(())
     }
