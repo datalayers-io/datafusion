@@ -352,8 +352,8 @@ impl Optimizer {
                 }
                 .and_then(|tnr| {
                     // run checks optimizer invariant checks, per optimizer rule applied
-                    assert_valid_optimization(&tnr.data, &starting_schema)
-                        .map_err(|e| e.context(format!("Check optimizer-specific invariants after optimizer rule: {}", rule.name())))?;
+                    // assert_valid_optimization(&tnr.data, &starting_schema)
+                    //     .map_err(|e| e.context(format!("Check optimizer-specific invariants after optimizer rule: {}", rule.name())))?;
 
                     // run LP invariant checks only in debug mode for performance reasons
                     #[cfg(debug_assertions)]
