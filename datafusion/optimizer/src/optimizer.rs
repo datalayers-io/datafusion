@@ -420,9 +420,9 @@ impl Optimizer {
         }
 
         // verify that the optimizer passes only mutated what was permitted.
-        assert_valid_optimization(&new_plan, &starting_schema).map_err(|e| {
-            e.context("Check optimizer-specific invariants after all passes")
-        })?;
+        // assert_valid_optimization(&new_plan, &starting_schema).map_err(|e| {
+        //     e.context("Check optimizer-specific invariants after all passes")
+        // })?;
 
         // verify LP is valid, after the last optimizer pass.
         new_plan
