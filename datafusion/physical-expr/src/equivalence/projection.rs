@@ -51,8 +51,6 @@ impl ProjectionMapping {
         expr: &[(Arc<dyn PhysicalExpr>, String)],
         input_schema: &SchemaRef,
     ) -> Result<Self> {
-        println!("ProjectionMapping all expr: {:?}", expr);
-
         // Construct a map from the input expressions to the output expression of the projection:
         expr.iter()
             .enumerate()
@@ -65,11 +63,6 @@ impl ProjectionMapping {
                             // doesn't match. This can cause problems, so we make sure
                             // that the expression name matches with the name in `input_schema`.
                             // Conceptually, `source_expr` and `expression` should be the same.
-                            println!("ProjectionMapping expr_idx: {}", expr_idx);
-                            println!("ProjectionMapping physical expr: {}", e);
-                            println!("ProjectionMapping col: {}", col);
-                            println!("ProjectionMapping input_schema: {}", input_schema);
-
                             let idx = col.index();
                             let matching_input_field = input_schema.field(idx);
                             if col.name() != matching_input_field.name() {
